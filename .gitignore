@@ -22,3 +22,6 @@ bin/
 # vweb and database
 *.db
 *.js
+
+# roms because we don't have license for this :)
+roms/
