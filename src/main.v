@@ -2,6 +2,7 @@ module main
 
 import rand
 import os
+import flag
 
 struct Vchip8 {
 mut:
@@ -302,11 +303,32 @@ fn main() {
 		sp: 0
 	}
 
-	machine.vchip8_start()
-	machine.vchip8_load(os.args[1])
-	//println(os.args)
+	mut parser := flag.new_flag_parser(os.args)
+	parser.application('vchip8')
+	parser.version('1.0.0')
+	parser.description('CHIP-8 emulator written in V')
+	parser.skip_executable()
+	rom_path := parser.string(
+		'rom',
+		`r`, 
+		'', 
+		'load the rom'
+	)
+	parser.finalize() or { 
+		println(parser.usage())
+		return
+	}
 
-	for {
-		machine.vchip8_cycle()
+	ext := os.file_ext(rom_path)
+	if ext.compare('.ch8') == 0 {
+		machine.vchip8_start()
+		machine.vchip8_load(rom_path)
+
+		for {
+			machine.vchip8_cycle()
+		}
+	} else {
+		println(parser.usage()) 
+		println("[!] Unknown file or path.")
 	}
 }
