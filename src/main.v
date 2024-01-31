@@ -4,6 +4,16 @@ import rand
 import os
 import flag
 
+import gg
+import gx
+
+struct Gui {
+mut:
+	gg &gg.Context = unsafe { nil }
+	pixels []int
+}
+
+@[heap]
 struct Vchip8 {
 mut:
 	reg []u8
@@ -324,11 +334,30 @@ fn main() {
 		machine.vchip8_start()
 		machine.vchip8_load(rom_path)
 
-		for {
-			machine.vchip8_cycle()
+		win_width := 640
+		win_height := 320
+
+		mut gui := &Gui {
+			gg: unsafe { 0 }
+			pixels: []int{ len: gfx_len, init: 0 }
 		}
+
+		gui.gg = gg.new_context(
+			bg_color: gx.black
+			width: win_width
+			height: win_height
+			frame_fn: machine.frame
+			user_data: gui
+		)
+		gui.gg.run()
 	} else {
 		println(parser.usage()) 
 		println("[!] Unknown file or path.")
 	}
+}
+
+fn (mut vchip8 Vchip8) frame(mut gui Gui) {
+	gui.gg.begin()
+	vchip8.vchip8_cycle()
+	gui.gg.end()
 }
