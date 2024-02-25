@@ -10,7 +10,7 @@ struct Vchip8 {
 mut:
     reg [16]u8
     mem [4096]u8
-    gfx []u8
+    gfx [2048]u8
     key [16]u8
     dt u8
     st u8
@@ -52,7 +52,7 @@ fn vchip8_start() &Vchip8 {
         mut vchip8 := &Vchip8 {
         reg: [16]u8 {},
         mem: [4096]u8 {},
-        gfx: []u8 { len: 2048 },
+        gfx: [2048]u8 {},
         key: [16]u8 {},
         dt: 0,
         st: 0,
@@ -99,7 +99,9 @@ fn (mut vchip8 Vchip8) vchip8_cycle() {
             0x0000 {
                 match vchip8.opcode & 0x00ff {
                     0xe0 {
-                        unsafe { vchip8.gfx.reset() }
+                        for bit in 0..vchip8.gfx.len {
+                            vchip8.gfx[bit] = 0
+                        }
                         vchip8.pc += 2
                     }
                     0xee {
@@ -186,10 +188,9 @@ fn (mut vchip8 Vchip8) vchip8_cycle() {
             			x := (vchip8.opcode & 0x0f00) >> 8
             			y := (vchip8.opcode & 0x00f0) >> 4
 
-            			result := vchip8.reg[x] + vchip8.reg[y]
+                        result := u16(vchip8.reg[x]) + vchip8.reg[y]
                         vchip8.reg[x] = u8(result)
             			vchip8.reg[0xf] = if result > 0xff { u8(1) } else { u8(0) }
-
             			vchip8.pc += 2
             		}
             		0x5 {
