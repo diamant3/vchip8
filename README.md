@@ -18,6 +18,3 @@ run:
 ```shell
 ./vchip8 --rom "path of chip8 rom"
 ```
-
-> [!Note]
-> Work in progress
