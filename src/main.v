@@ -1,6 +1,6 @@
 module main
 
-//import rand
+import rand
 import os
 import flag
 import gg
@@ -11,7 +11,7 @@ mut:
     reg [16]u8
     mem [4096]u8
     gfx [2048]u8
-    key [16]u8
+    keys [16]bool
     dt u8
     st u8
     draw_flag bool
@@ -48,12 +48,32 @@ const font_set = [
     0xf0, 0x80, 0xf0, 0x80, 0x80  // F
 ]
 
+const keys = {
+    gg.KeyCode._1: u8(1)
+	gg.KeyCode._2: 2
+	gg.KeyCode._3: 3
+	gg.KeyCode._4: 0xc
+	gg.KeyCode.q:  4
+	gg.KeyCode.w:  5
+	gg.KeyCode.e:  6
+	gg.KeyCode.r:  0xd
+	gg.KeyCode.a:  7
+	gg.KeyCode.s:  8
+	gg.KeyCode.d:  9
+	gg.KeyCode.f:  0xe
+	gg.KeyCode.z:  0xa
+	gg.KeyCode.x:  0
+	gg.KeyCode.c:  0xb
+	gg.KeyCode.v:  0xf
+
+}
+
 fn vchip8_start() &Vchip8 {
         mut vchip8 := &Vchip8 {
         reg: [16]u8 {},
         mem: [4096]u8 {},
         gfx: [2048]u8 {},
-        key: [16]u8 {},
+        keys: [16]bool {},
         dt: 0,
         st: 0,
         draw_flag: false,
@@ -248,16 +268,16 @@ fn (mut vchip8 Vchip8) vchip8_cycle() {
                 vchip8.i = addr
                 vchip8.pc += 2
             }
-            // 0xb000 {
-            // 	addr := vchip8.opcode & 0x0fff
-            // 	vchip8.pc = addr + vchip8.reg[0x0]
-            // }
-            // 0xc000 {
-            // 	regx := vchip8.reg[(vchip8.opcode & 0x0f00) >> 8]
-            // 	byte_addr := u8(vchip8.opcode & 0x00ff)
-            // 	random_number := rand.int_in_range(0, 256) or { panic(err) }
-            // 	vchip8.reg[regx] = u8(random_number & byte_addr)
-            // }
+            0xb000 {
+            	vchip8.pc = (vchip8.opcode & 0x0fff) + vchip8.reg[0x0]
+            }
+            0xc000 {
+            	x := (vchip8.opcode & 0x0f00) >> 8
+            	//byte_addr := u8(vchip8.opcode & 0x00ff)
+            	random_number := rand.int_in_range(0, 255) or { panic(err) }
+            	vchip8.reg[x] = u8(random_number) & 0xff
+                vchip8.pc += 2
+            }
             0xd000 {
                 mut xx := vchip8.reg[(vchip8.opcode & 0x0f00) >> 8]
                 mut yy := vchip8.reg[(vchip8.opcode & 0x00f0) >> 4]
@@ -283,24 +303,51 @@ fn (mut vchip8 Vchip8) vchip8_cycle() {
 
                 vchip8.pc += 2
             }
-            // 0xe000 {
-            // 	match vchip8.opcode & 0x00ff {
-            // 		0x9e { println("NOP") }
-            // 		0xa1 { println("NOP") }
-            // 		else { println("[!] Unimplemented opcode ${vchip8.opcode}") }
-            // 	}
-            // }
+            0xe000 {
+            	match vchip8.opcode & 0x00ff {
+            		0x9e {
+                        x := (vchip8.opcode & 0x0f00) >> 8
+                        if vchip8.keys[vchip8.reg[x]] == true { vchip8.pc += 4 }
+                        else { vchip8.pc += 2 }
+                    }
+            		0xa1 {
+                        x := (vchip8.opcode & 0x0f00) >> 8
+                        if vchip8.keys[vchip8.reg[x]] == false { vchip8.pc += 4 }
+                        else { vchip8.pc += 2 }
+                    }
+            		else { println("[!] Unimplemented opcode ${vchip8.opcode}") }
+            	}
+            }
             0xf000 {
             	match vchip8.opcode & 0x00ff {
-            		0x07 { println("[!] Unimplemented opcode ${vchip8.opcode.hex()}") }
-            		0x0a { println("[!] Unimplemented opcode ${vchip8.opcode.hex()}") }
-            		0x15 { println("[!] Unimplemented opcode ${vchip8.opcode.hex()}") }
-            		0x18 { println("[!] Unimplemented opcode ${vchip8.opcode.hex()}") }
+            		0x07 {
+                        vchip8.reg[(vchip8.opcode & 0x0f00) >> 8] = vchip8.dt
+                        vchip8.pc += 2
+                    }
+            		0x0a {
+                        for key in 0..vchip8.keys.len {
+                            if vchip8.keys[key] {
+                                vchip8.reg[(vchip8.opcode & 0x0f00) >> 8] = key
+                                vchip8.pc += 2
+                                break
+                            }
+                        }
+                    }
+            		0x15 {
+                        vchip8.dt = vchip8.reg[(vchip8.opcode & 0x0f00) >> 8]
+                        vchip8.pc += 2
+                    }
+            		0x18 {
+                        vchip8.st = vchip8.reg[(vchip8.opcode & 0x0f00) >> 8]
+                    }
             		0x1e {
                         vchip8.i += vchip8.reg[(vchip8.opcode & 0x0f00) >> 8]
                         vchip8.pc += 2
                     }
-            		0x29 { println("[!] Unimplemented opcode ${vchip8.opcode.hex()}") }
+            		0x29 {
+                        vchip8.i = vchip8.reg[(vchip8.opcode & 0x0f00) >> 8] * 5
+                        vchip8.pc += 2
+                    }
             		0x33 {
                        regx := vchip8.reg[(vchip8.opcode & 0x0f00) >> 8]
                        vchip8.mem[vchip8.i] = regx / 100
@@ -349,7 +396,7 @@ fn main() {
     )
     parser.finalize() or {
         println(parser.usage())
-        return
+        exit(0)
     }
 
     ext := os.file_ext(rom_path)
@@ -364,6 +411,8 @@ fn main() {
             window_title: 'vchip8'
             frame_fn: frame
             user_data: state
+            keyup_fn: key_release
+		    keydown_fn: key_press
         )
         spawn state.vchip8.vchip8_cycle()
         state.gg.run()
@@ -371,7 +420,7 @@ fn main() {
     } else {
         println(parser.usage())
         println("[!] Unknown file or path.")
-        return
+        exit(1)
     }
 }
 
@@ -382,10 +431,24 @@ fn frame(mut state Vchip8State) {
         for y in 0..32 {
             index := x + (y * 64)
             if state.vchip8.gfx[index] > 0 {
-                state.gg.draw_rect_filled(x * 10, y * 10, 10, 10, gx.yellow)
+                state.gg.draw_square_filled(x * 10, y * 10, 10, gx.yellow)
             }
         }
     }
 
     state.gg.end()
+}
+
+fn key_press(code gg.KeyCode, _ gg.Modifier, mut state Vchip8State) {
+    if code == gg.KeyCode.escape {
+        exit(0)
+    }
+
+    key := keys[code]
+    state.vchip8.keys[key] = true
+}
+
+fn key_release(code gg.KeyCode, _ gg.Modifier, mut state Vchip8State) {
+    key := keys[code]
+    state.vchip8.keys[key] = false
 }
